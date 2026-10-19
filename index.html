@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I saw Sadie</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --red:#C8102E; --yel:#FFD400; --ink:#111; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:#fff; }
+  header { background:var(--red); color:#fff; padding:12px 16px; display:flex; gap:12px; align-items:center; }
+  header img { width:64px; height:76px; object-fit:cover; border-radius:6px; border:2px solid #fff; }
+  header h1 { margin:0; font-size:26px; line-height:1.1; }
+  header p { margin:4px 0 0; font-size:15px; }
+  main { padding:12px 16px 32px; max-width:640px; margin:0 auto; }
+  .step { font-weight:700; font-size:18px; margin:14px 0 8px; }
+  button, a.btn { display:block; width:100%; font-size:20px; font-weight:700; padding:16px; border-radius:10px; border:0; text-align:center; text-decoration:none; cursor:pointer; }
+  .loc { background:#1565C0; color:#fff; }
+  .send { background:var(--red); color:#fff; margin-top:14px; }
+  .call { background:#fff; color:var(--red); border:3px solid var(--red); margin-top:10px; }
+  #map { height:340px; border-radius:10px; border:2px solid var(--ink); }
+  .hint { font-size:15px; color:#333; margin:6px 0; }
+  #status { font-size:15px; margin:8px 0; min-height:1.2em; }
+  select, textarea { width:100%; font-size:17px; padding:10px; border-radius:8px; border:1px solid #888; }
+  textarea { height:70px; }
+  .warn { background:var(--yel); padding:10px 12px; border-radius:8px; font-weight:700; margin-top:12px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="sadie.jpg" alt="Sadie, a white Goldendoodle">
+  <div><h1>Did you see Sadie?</h1><p>White Goldendoodle, dark collar. Thank you for helping!</p></div>
+</header>
+<main>
+  <div class="warn">Please don't chase her. She's scared. Just tell us where.</div>
+
+  <div class="step">1. Where did you see her?</div>
+  <button class="loc" id="here">📍 I'm there now: use my location</button>
+  <p class="hint">Or <b>tap the map</b> where you saw her (drag the pin to fix it). Driving past? Tap the spot on the road.</p>
+  <div id="map"></div>
+  <div id="status">No spot picked yet.</div>
+
+  <div class="step">2. When? (optional)</div>
+  <select id="when">
+    <option>Just now</option>
+    <option>About 15 minutes ago</option>
+    <option>About 30 minutes ago</option>
+    <option>About 1 hour ago</option>
+    <option>Earlier today</option>
+    <option>Yesterday or before</option>
+  </select>
+  <div class="step">3. Anything else? (optional)</div>
+  <textarea id="note" placeholder="Which way was she going? Was she alone?"></textarea>
+
+  <a class="btn send" id="send" href="#">Text this to Sadie's family</a>
+  <p class="hint">Your text app opens with the map pin filled in. <b>Add a photo there if you have one</b>, then press send.</p>
+  <a class="btn call" href="tel:+14236455227">Or call 423-645-5227</a>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var PHONE = "+14236455227";
+  var LAST_SEEN = [35.3893, -85.3000]; // Raven Crest Trail W at Red Rock Canyon Rd
+  var map = L.map("map").setView(LAST_SEEN, 15);
+  var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
+  var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
+  streets.addTo(map);
+  L.control.layers({ "Map": streets, "Satellite": sat }).addTo(map);
+  L.circleMarker(LAST_SEEN, { radius: 7, color: "#C8102E" }).addTo(map).bindTooltip("Last seen Oct 18");
+
+  var pin = null, picked = null, acc = null;
+  function setPin(lat, lng, accuracy) {
+    picked = [lat, lng]; acc = accuracy || null;
+    if (!pin) { pin = L.marker(picked, { draggable: true }).addTo(map);
+      pin.on("dragend", function () { var p = pin.getLatLng(); setPin(p.lat, p.lng, null); }); }
+    else pin.setLatLng(picked);
+    document.getElementById("status").textContent = "✅ Spot picked: " + lat.toFixed(5) + ", " + lng.toFixed(5) + (acc ? " (within about " + Math.round(acc * 3.28) + " ft)" : "");
+  }
+  map.on("click", function (e) { setPin(e.latlng.lat, e.latlng.lng, null); });
+
+  document.getElementById("here").onclick = function () {
+    var s = document.getElementById("status");
+    if (!navigator.geolocation) { s.textContent = "Your phone can't share location here. Please tap the map instead."; return; }
+    s.textContent = "Finding you… (say Allow if your phone asks)";
+    navigator.geolocation.getCurrentPosition(function (p) {
+      setPin(p.coords.latitude, p.coords.longitude, p.coords.accuracy);
+      map.setView(picked, 17);
+    }, function () { s.textContent = "Couldn't get your location. Please tap the map where you saw her."; },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  };
+
+  document.getElementById("send").onclick = function (e) {
+    e.preventDefault();
+    var when = document.getElementById("when").value;
+    var note = document.getElementById("note").value.trim();
+    var msg = "I SAW SADIE!";
+    if (picked) msg += "\nMap: https://maps.google.com/?q=" + picked[0].toFixed(6) + "," + picked[1].toFixed(6) +
+      "\nGPS: " + picked[0].toFixed(6) + ", " + picked[1].toFixed(6);
+    else msg += "\n(No map spot picked)";
+    msg += "\nWhen: " + when + " (sent " + new Date().toLocaleString() + ")";
+    if (note) msg += "\nNote: " + note;
+    var ios = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+    window.location.href = "sms:" + PHONE + (ios ? "&" : "?") + "body=" + encodeURIComponent(msg);
+  };
+</script>
+</body>
+</html>
