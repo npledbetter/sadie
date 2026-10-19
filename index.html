@@ -17,6 +17,7 @@
   .step { font-weight:700; font-size:18px; margin:14px 0 8px; }
   button, a.btn { display:block; width:100%; font-size:20px; font-weight:700; padding:16px; border-radius:10px; border:0; text-align:center; text-decoration:none; cursor:pointer; }
   .loc { background:#1565C0; color:#fff; }
+  .find { background:#E3F2FD; color:#0D47A1; border:2px solid #1565C0; font-size:17px; padding:12px; margin-bottom:8px; }
   .send { background:var(--red); color:#fff; margin-top:14px; }
   .call { background:#fff; color:var(--red); border:3px solid var(--red); margin-top:10px; }
   #map { height:340px; border-radius:10px; border:2px solid var(--ink); }
@@ -38,6 +39,7 @@
   <div class="step">1. Where did you see her?</div>
   <button class="loc" id="here">📍 I'm there now: use my location</button>
   <p class="hint">Or <b>tap the map</b> where you saw her (drag the pin to fix it). Driving past? Tap the spot on the road.</p>
+  <button class="find" id="findme">🔵 Show me where I am on the map</button>
   <div id="map"></div>
   <div id="status">No spot picked yet.</div>
 
@@ -60,13 +62,21 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   var PHONE = "+14236455227";
-  var LAST_SEEN = [35.3893, -85.3000]; // Raven Crest Trail W at Red Rock Canyon Rd
-  var map = L.map("map").setView(LAST_SEEN, 15);
+  var LAST_SEEN = [35.3909, -85.3002]; // 99 Raven Crest Trail W
+  var map = L.map("map");
+  map.fitBounds(L.latLng(LAST_SEEN).toBounds(2 * 24140)); // about 15 miles around
   var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
   var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
   streets.addTo(map);
   L.control.layers({ "Map": streets, "Satellite": sat }).addTo(map);
-  L.circleMarker(LAST_SEEN, { radius: 7, color: "#C8102E" }).addTo(map).bindTooltip("Last seen Oct 18");
+  L.circleMarker(LAST_SEEN, { radius: 9, color: "#C8102E", fillColor: "#C8102E", fillOpacity: 0.8 }).addTo(map).bindTooltip("Sadie last seen here, Oct 18", { permanent: true, direction: "top" });
+  var me = null;
+  function showMe(p) {
+    var ll = [p.coords.latitude, p.coords.longitude];
+    if (!me) me = L.circleMarker(ll, { radius: 9, color: "#fff", weight: 3, fillColor: "#1E88E5", fillOpacity: 1 }).addTo(map).bindTooltip("You are here", { permanent: true, direction: "bottom" });
+    else me.setLatLng(ll);
+    return ll;
+  }
 
   var pin = null, picked = null, acc = null;
   function setPin(lat, lng, accuracy) {
@@ -83,9 +93,20 @@
     if (!navigator.geolocation) { s.textContent = "Your phone can't share location here. Please tap the map instead."; return; }
     s.textContent = "Finding you… (say Allow if your phone asks)";
     navigator.geolocation.getCurrentPosition(function (p) {
-      setPin(p.coords.latitude, p.coords.longitude, p.coords.accuracy);
+      showMe(p); setPin(p.coords.latitude, p.coords.longitude, p.coords.accuracy);
       map.setView(picked, 17);
     }, function () { s.textContent = "Couldn't get your location. Please tap the map where you saw her."; },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  };
+
+  document.getElementById("findme").onclick = function () {
+    var s = document.getElementById("status");
+    if (!navigator.geolocation) { s.textContent = "Your phone can't share location here."; return; }
+    s.textContent = "Finding you… (say Allow if your phone asks)";
+    navigator.geolocation.getCurrentPosition(function (p) {
+      map.setView(showMe(p), 15);
+      s.textContent = picked ? s.textContent : "Blue dot = you. Now tap the map where you saw Sadie.";
+    }, function () { s.textContent = "Couldn't get your location. You can still tap the map."; },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
 
