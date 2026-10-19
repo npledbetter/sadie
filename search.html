@@ -28,7 +28,7 @@
     <li>Leave <b>water + a worn shirt or her bed</b> at the last-seen spot and at the bottom of the bluff.</li>
     <li>Ask people outside, check barns, porches, sheds, culverts, under decks.</li>
     <li>Call Sequatchie County and Rhea County animal control and nearby vets; post in local Facebook lost-pet groups.</li>
-    <li><b>Drone tonight:</b> the green circle is 0.5 mile around where she was last seen. Move it to the newest sighting if one comes in.</li>
+    <li><b>Drone tonight:</b> the <b>blue circle</b> (center 35.3920, -85.3095). <b>Park + launch at 🅿️</b>, the top of the bluff at the last-seen spot. Red arrow = most likely way she went (downhill), orange = second guess (creek). A real sighting beats this guess.</li>
   </ul>
   <b>Mark mode:</b> turn it on, then tap the map to drop a 📄 (flyer posted / area checked). Tap a marker to delete it. Marks stay on this phone only.
 </div>
@@ -55,6 +55,24 @@
   });
   L.circleMarker(LAST, { radius: 9, color: "#fff", weight: 3, fillColor: "#C8102E", fillOpacity: 1 }).addTo(map)
     .bindTooltip("Last seen Sun 3:45 PM", { permanent: true, direction: "top" });
+
+
+  // ---- Drone plan (Oct 19 evening) ----
+  var DRONE = [35.3920, -85.3095];
+  L.circle(DRONE, { radius: 0.5 * MI, color: "#0D47A1", weight: 4, fillColor: "#1E88E5", fillOpacity: 0.12 }).addTo(map)
+    .bindPopup("<b>DRONE AREA (0.5 mi)</b><br>Center 35.3920, -85.3095<br>Covers the last-seen spot (east edge) and the steep bluff below it, the way a scared dog usually goes: downhill, into thick cover.<br>Fly at dark, slow along the hollows and creeks.");
+  L.marker(DRONE, { icon: L.divIcon({ className: "lbl", html: "🚁 DRONE CENTER", iconSize: null }) }).addTo(map);
+  var PARK = [35.3909, -85.3006];
+  L.marker(PARK, { icon: L.divIcon({ className: "lbl", html: "🅿️ PARK + LAUNCH (top of bluff)", iconSize: null, iconAnchor: [0, -14] }) }).addTo(map)
+    .bindPopup("<b>Park + launch here</b> (Raven Crest Trail W, at the last-seen spot).<br>High ground: the pilot looks DOWN the bluff and keeps a strong signal the whole flight. Use a driveway or clearing with open sky; ask the owner.<br><a href='https://maps.google.com/?q=35.3909,-85.3006'>Directions</a>");
+  function arrow(from, to, color, label) {
+    L.polyline([from, to], { color: color, weight: 5, opacity: 0.85 }).addTo(map);
+    var ang = Math.atan2(to[0] - from[0], (to[1] - from[1]) * Math.cos(from[0] * Math.PI / 180)) * 180 / Math.PI;
+    L.marker(to, { icon: L.divIcon({ className: "", html: '<div style="color:' + color + ';font-size:30px;line-height:30px;transform:translate(-50%,-50%) rotate(' + (-ang) + 'deg)">➤</div>', iconSize: [0, 0] }) }).addTo(map);
+    if (label) L.marker([(from[0] + to[0]) / 2, (from[1] + to[1]) / 2], { icon: L.divIcon({ className: "lbl", html: label, iconSize: null }) }).addTo(map);
+  }
+  arrow(LAST, [35.3958, -85.3170], "#C8102E", "Most likely: downhill (bluff)");
+  arrow(LAST, [35.3830, -85.2930], "#E65100", "2nd: along the creek");
 
   // Live "you are here"
   var me = null, meRing = null, follow = false;
