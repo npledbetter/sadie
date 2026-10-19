@@ -65,11 +65,16 @@
     else { me.setLatLng(ll); meRing.setLatLng(ll).setRadius(p.coords.accuracy); }
     if (follow) { map.setView(ll, Math.max(map.getZoom(), 15)); follow = false; }
   }
-  document.getElementById("me").onclick = function () {
+  var watching = false;
+  function startWatch() {
     if (!navigator.geolocation) { alert("Location not available on this phone."); return; }
-    follow = true;
-    if (me) { map.setView(me.getLatLng(), Math.max(map.getZoom(), 15)); follow = false; }
-    navigator.geolocation.watchPosition(onPos, function () { alert("Couldn't get your location. Allow location for this page."); }, { enableHighAccuracy: true, maximumAge: 5000 });
+    if (watching) return; watching = true;
+    navigator.geolocation.watchPosition(onPos, function () { watching = false; alert("Couldn't get your location. Allow location for this page, then tap Where am I."); }, { enableHighAccuracy: true, maximumAge: 5000 });
+  }
+  follow = true; startWatch(); // show live location as soon as the map opens
+  document.getElementById("me").onclick = function () {
+    if (me) map.setView(me.getLatLng(), Math.max(map.getZoom(), 15)); else follow = true;
+    startWatch();
   };
 
   // Marks (flyers / checked), saved on this phone
