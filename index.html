@@ -105,7 +105,7 @@
     s.textContent = "Finding you… (say Allow if your phone asks)";
     navigator.geolocation.getCurrentPosition(function (p) {
       map.setView(showMe(p), 15);
-      s.textContent = picked ? s.textContent : "Blue dot = you. Now tap the map where you saw Sadie.";
+      if (picked) setPin(picked[0], picked[1], acc); else s.textContent = "Blue dot = you. Now tap the map where you saw Sadie.";
     }, function () { s.textContent = "Couldn't get your location. You can still tap the map."; },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
