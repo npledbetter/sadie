@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Sadie search map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  html, body { margin:0; height:100%; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  #map { position:absolute; top:0; bottom:0; left:0; right:0; }
+  .bar { position:absolute; z-index:1000; left:8px; right:8px; bottom:12px; display:flex; gap:6px; }
+  .bar button { flex:1; font-size:15px; font-weight:700; padding:12px 6px; border-radius:10px; border:0; color:#fff; }
+  #me { background:#1565C0; } #mode { background:#555; } #tips { background:#C8102E; }
+  #mode.on { background:#2E7D32; }
+  #panel { display:none; position:absolute; z-index:1001; top:8px; left:8px; right:8px; max-height:70%; overflow:auto; background:#fff; border-radius:10px; padding:12px 14px; box-shadow:0 2px 10px rgba(0,0,0,.4); font-size:15px; line-height:1.35; }
+  #panel h3 { margin:4px 0 6px; } #panel ul { padding-left:18px; margin:4px 0 8px; }
+  .lbl { background:rgba(255,255,255,.85); border:0; font-weight:700; font-size:12px; padding:1px 4px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <h3>How to search (tap ✕ Tips to close)</h3>
+  <ul>
+    <li><b>Most lost dogs are found within 1 to 2 miles</b> (the inner rings). Scared dogs hide in the day and move at dusk, night and dawn.</li>
+    <li><b>Downhill first:</b> on steep ground they follow hollows, creeks, trails and power-line cuts down toward the valley (East Valley Rd, Dunlap). Use the <b>Topo</b> layer: blue lines are creeks, tight lines are steep.</li>
+    <li><b>Do not call her or walk at her.</b> Sit or crouch, look away, toss treats, let her come.</li>
+    <li>Leave <b>water + a worn shirt or her bed</b> at the last-seen spot and at the bottom of the bluff.</li>
+    <li>Ask people outside, check barns, porches, sheds, culverts, under decks.</li>
+    <li>Call Sequatchie County and Rhea County animal control and nearby vets; post in local Facebook lost-pet groups.</li>
+    <li><b>Drone tonight:</b> the green circle is 0.5 mile around where she was last seen. Move it to the newest sighting if one comes in.</li>
+  </ul>
+  <b>Mark mode:</b> turn it on, then tap the map to drop a 📄 (flyer posted / area checked). Tap a marker to delete it. Marks stay on this phone only.
+</div>
+<div class="bar">
+  <button id="me">🔵 Where am I</button>
+  <button id="mode">📄 Mark: off</button>
+  <button id="tips">Tips</button>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var LAST = [35.3909, -85.3002]; // 99 Raven Crest Trail W
+  var MI = 1609.34;
+  var map = L.map("map", { zoomControl: true }).setView(LAST, 13);
+  var topo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 17, attribution: "© OpenTopoMap, © OpenStreetMap" });
+  var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
+  var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
+  var satLabels = L.layerGroup([sat, L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 })]);
+  topo.addTo(map);
+  L.control.layers({ "Topo (hills + creeks)": topo, "Streets": streets, "Satellite + roads": satLabels }).addTo(map);
+
+  [[0.5, "#2E7D32", "0.5 mi (drone)"], [1, "#C8102E", "1 mi"], [2, "#E65100", "2 mi"], [3, "#6A1B9A", "3 mi"]].forEach(function (r) {
+    L.circle(LAST, { radius: r[0] * MI, color: r[1], weight: r[0] === 0.5 ? 3 : 2, fill: r[0] === 0.5, fillOpacity: 0.08, dashArray: r[0] === 0.5 ? null : "6 6" }).addTo(map);
+    L.marker([LAST[0] + (r[0] * MI) / 111320, LAST[1]], { icon: L.divIcon({ className: "lbl", html: r[2], iconSize: null }) }).addTo(map);
+  });
+  L.circleMarker(LAST, { radius: 9, color: "#fff", weight: 3, fillColor: "#C8102E", fillOpacity: 1 }).addTo(map)
+    .bindTooltip("Last seen Sun 3:45 PM", { permanent: true, direction: "top" });
+
+  // Live "you are here"
+  var me = null, meRing = null, follow = false;
+  function onPos(p) {
+    var ll = [p.coords.latitude, p.coords.longitude];
+    if (!me) { me = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#1E88E5", fillOpacity: 1 }).addTo(map);
+               meRing = L.circle(ll, { radius: p.coords.accuracy, color: "#1E88E5", weight: 1, fillOpacity: 0.1 }).addTo(map); }
+    else { me.setLatLng(ll); meRing.setLatLng(ll).setRadius(p.coords.accuracy); }
+    if (follow) { map.setView(ll, Math.max(map.getZoom(), 15)); follow = false; }
+  }
+  document.getElementById("me").onclick = function () {
+    if (!navigator.geolocation) { alert("Location not available on this phone."); return; }
+    follow = true;
+    if (me) { map.setView(me.getLatLng(), Math.max(map.getZoom(), 15)); follow = false; }
+    navigator.geolocation.watchPosition(onPos, function () { alert("Couldn't get your location. Allow location for this page."); }, { enableHighAccuracy: true, maximumAge: 5000 });
+  };
+
+  // Marks (flyers / checked), saved on this phone
+  var marking = false, KEY = "sadieMarks";
+  var marks = []; try { marks = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} }
+  function addMark(m) {
+    var mk = L.marker([m.lat, m.lng], { icon: L.divIcon({ className: "lbl", html: "📄", iconSize: null }) }).addTo(map)
+      .bindTooltip(m.t, { direction: "top" });
+    mk.on("click", function () { if (confirm("Delete this mark?")) { map.removeLayer(mk); marks = marks.filter(function (x) { return x !== m; }); save(); } });
+  }
+  marks.forEach(addMark);
+  var btn = document.getElementById("mode");
+  btn.onclick = function () { marking = !marking; btn.textContent = marking ? "📄 Mark: ON" : "📄 Mark: off"; btn.classList.toggle("on", marking); };
+  map.on("click", function (e) {
+    if (!marking) return;
+    var m = { lat: e.latlng.lat, lng: e.latlng.lng, t: new Date().toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) };
+    marks.push(m); save(); addMark(m);
+  });
+
+  var panel = document.getElementById("panel"), tips = document.getElementById("tips");
+  tips.onclick = function () { var open = panel.style.display === "block"; panel.style.display = open ? "none" : "block"; tips.textContent = open ? "Tips" : "✕ Tips"; };
+</script>
+</body>
+</html>
