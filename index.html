@@ -64,7 +64,7 @@
   var PHONE = "+14236455227";
   var LAST_SEEN = [35.3909, -85.3002]; // 99 Raven Crest Trail W
   var map = L.map("map");
-  map.fitBounds(L.latLng(LAST_SEEN).toBounds(2 * 24140)); // about 15 miles around
+  map.setView(LAST_SEEN, 10); // about 15 miles around on a phone
   var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
   var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
   streets.addTo(map);
